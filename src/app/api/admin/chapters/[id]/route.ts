@@ -4,24 +4,23 @@ import { getAdminFromRequest } from '@/lib/admin-auth';
 
 // OJO: Las siguientes importaciones son para manejar archivos locales.
 // NO funcionarán en Vercel y no son necesarias con Cloudinary.
-// Las dejamos por ahora, pero la lógica que las usa será comentada.
 import { rm } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
-// --- FUNCIÓN DELETE CORREGIDA Y OPTIMIZADA ---
+// --- FUNCIÓN DELETE CON LA CORRECCIÓN DEFINITIVA ---
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } } // Esta es la firma correcta
+  context: { params: { id: string } } // CAMBIO CLAVE AQUÍ: Recibimos 'context' completo
 ) {
   try {
+    const { id: chapterId } = context.params; // Y lo desarmamos aquí adentro.
+
     // Verificar autenticación de administrador
-    const admin = await getAdminFromRequest(request); // Añadido 'await' por si la función es asíncrona
+    const admin = await getAdminFromRequest(request);
     if (!admin) {
       return NextResponse.json({ message: 'No autorizado' }, { status: 401 });
     }
-
-    const chapterId = params.id;
 
     const chapter = await db.chapter.findUnique({
       where: { id: chapterId },
@@ -33,13 +32,9 @@ export async function DELETE(
     }
 
     // --- LÓGICA DE BORRADO DE IMÁGENES ---
-    // ¡IMPORTANTE! El código original intenta borrar archivos del servidor.
-    // Esto NO funciona en Vercel y NO borra nada de Cloudinary.
-    // Lo correcto es hacer una llamada a la API de Cloudinary para borrar cada imagen.
-    // He comentado el código antiguo y te dejo un ejemplo de cómo sería con Cloudinary.
-
+    // He comentado esta sección porque NO funcionará en Vercel con Cloudinary.
+    // La solución real es llamar a la API de Cloudinary para borrar las imágenes.
     /*
-    // CÓDIGO ANTIGUO (NO FUNCIONAL EN VERCEL/CLOUDINARY) - LO COMENTAMOS
     for (const image of chapter.images) {
       const imagePath = join(process.cwd(), 'public', image.imageUrl);
       if (existsSync(imagePath)) {
@@ -51,16 +46,8 @@ export async function DELETE(
       await rm(chapterDir, { recursive: true });
     }
     */
-    
-    // EJEMPLO DE CÓMO SERÍA LA LÓGICA CORRECTA CON CLOUDINARY (necesitarías instalar 'cloudinary')
-    // for (const image of chapter.images) {
-    //   // Asumiendo que guardas el 'public_id' de Cloudinary en tu base de datos
-    //   if (image.publicId) {
-    //     await cloudinary.v2.uploader.destroy(image.publicId);
-    //   }
-    // }
 
-    // Eliminar registros de la base de datos (Esto sí es correcto)
+    // Eliminar registros de la base de datos
     await db.chapterImage.deleteMany({
       where: { chapterId },
     });
@@ -82,19 +69,20 @@ export async function DELETE(
   }
 }
 
-// --- FUNCIÓN PATCH CORREGIDA ---
+// --- FUNCIÓN PATCH CON LA MISMA CORRECCIÓN ---
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } } // Esta es la firma correcta
+  context: { params: { id: string } } // CAMBIO CLAVE AQUÍ: Recibimos 'context' completo
 ) {
   try {
+    const { id: chapterId } = context.params; // Y lo desarmamos aquí adentro.
+
     // Verificar autenticación de administrador
-    const admin = await getAdminFromRequest(request); // Añadido 'await' por si la función es asíncrona
+    const admin = await getAdminFromRequest(request);
     if (!admin) {
       return NextResponse.json({ message: 'No autorizado' }, { status: 401 });
     }
 
-    const chapterId = params.id;
     const { status, publishDate, scheduledDate } = await request.json();
 
     const existingChapter = await db.chapter.findUnique({
