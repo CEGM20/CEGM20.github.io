@@ -7,10 +7,10 @@ import { existsSync } from 'fs';
 
 export async function DELETE(
   request: NextRequest,
-  context: { params: { id: string } } 
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id: chapterId } = context.params;
+    const { id: chapterId } = params;
 
     const admin = await getAdminFromRequest(request);
     if (!admin) {
