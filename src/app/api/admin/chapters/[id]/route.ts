@@ -1,22 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getAdminFromRequest } from '@/lib/admin-auth';
-
-// OJO: Las siguientes importaciones son para manejar archivos locales.
-// NO funcionarán en Vercel y no son necesarias con Cloudinary.
 import { rm } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 
-// --- FUNCIÓN DELETE CON LA CORRECCIÓN DEFINITIVA ---
 export async function DELETE(
   request: NextRequest,
-  context: { params: { id: string } } // CAMBIO CLAVE AQUÍ: Recibimos 'context' completo
+  context: { params: { id: string } } 
 ) {
   try {
-    const { id: chapterId } = context.params; // Y lo desarmamos aquí adentro.
+    const { id: chapterId } = context.params;
 
-    // Verificar autenticación de administrador
     const admin = await getAdminFromRequest(request);
     if (!admin) {
       return NextResponse.json({ message: 'No autorizado' }, { status: 401 });
@@ -31,9 +26,7 @@ export async function DELETE(
       return NextResponse.json({ message: 'Capítulo no encontrado' }, { status: 404 });
     }
 
-    // --- LÓGICA DE BORRADO DE IMÁGENES ---
-    // He comentado esta sección porque NO funcionará en Vercel con Cloudinary.
-    // La solución real es llamar a la API de Cloudinary para borrar las imágenes.
+    // Lógica de borrado de archivos locales comentada porque no aplica a Cloudinary/Vercel
     /*
     for (const image of chapter.images) {
       const imagePath = join(process.cwd(), 'public', image.imageUrl);
@@ -47,47 +40,31 @@ export async function DELETE(
     }
     */
 
-    // Eliminar registros de la base de datos
-    await db.chapterImage.deleteMany({
-      where: { chapterId },
-    });
+    await db.chapterImage.deleteMany({ where: { chapterId } });
+    await db.chapter.delete({ where: { id: chapterId } });
 
-    await db.chapter.delete({
-      where: { id: chapterId },
-    });
-
-    return NextResponse.json({
-      message: 'Capítulo eliminado exitosamente',
-    });
+    return NextResponse.json({ message: 'Capítulo eliminado exitosamente' });
 
   } catch (error) {
     console.error('Error deleting chapter:', error);
-    return NextResponse.json(
-      { message: 'Error interno del servidor' },
-      { status: 500 }
-    );
+    return NextResponse.json( { message: 'Error interno del servidor' }, { status: 500 } );
   }
 }
 
-// --- FUNCIÓN PATCH CON LA MISMA CORRECCIÓN ---
 export async function PATCH(
   request: NextRequest,
-  context: { params: { id: string } } // CAMBIO CLAVE AQUÍ: Recibimos 'context' completo
+  context: { params: { id: string } }
 ) {
   try {
-    const { id: chapterId } = context.params; // Y lo desarmamos aquí adentro.
+    const { id: chapterId } = context.params;
 
-    // Verificar autenticación de administrador
     const admin = await getAdminFromRequest(request);
     if (!admin) {
       return NextResponse.json({ message: 'No autorizado' }, { status: 401 });
     }
 
     const { status, publishDate, scheduledDate } = await request.json();
-
-    const existingChapter = await db.chapter.findUnique({
-      where: { id: chapterId },
-    });
+    const existingChapter = await db.chapter.findUnique({ where: { id: chapterId } });
 
     if (!existingChapter) {
       return NextResponse.json({ message: 'Capítulo no encontrado' }, { status: 404 });
@@ -102,21 +79,12 @@ export async function PATCH(
       updateData.publishDate = new Date(publishDate);
     }
 
-    const updatedChapter = await db.chapter.update({
-      where: { id: chapterId },
-      data: updateData,
-    });
+    const updatedChapter = await db.chapter.update({ where: { id: chapterId }, data: updateData });
 
-    return NextResponse.json({
-      message: 'Capítulo actualizado exitosamente',
-      chapter: updatedChapter,
-    });
+    return NextResponse.json({ message: 'Capítulo actualizado exitosamente', chapter: updatedChapter });
 
   } catch (error) {
     console.error('Error updating chapter:', error);
-    return NextResponse.json(
-      { message: 'Error interno del servidor' },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: 'Error interno del servidor' }, { status: 500 });
   }
 }
