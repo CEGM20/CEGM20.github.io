@@ -1,0 +1,198 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  password      String?
+  image         String?
+  emailVerified Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  comments    Comment[]
+  ratings     Rating[]
+  follows     Follow[]
+  readHistory ReadHistory[]
+
+  @@map("users")
+}
+
+model Admin {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("admins")
+}
+
+model Series {
+  id          String      @id @default(cuid())
+  title       String
+  description String?
+  coverImage  String?
+  author      String?
+  status      SeriesStatus @default(ONGOING)
+  isFeatured  Boolean     @default(false)
+  views       Int         @default(0)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  chapters   Chapter[]
+  genres     SeriesGenre[]
+  comments   Comment[]
+  ratings    Rating[]
+  follows    Follow[]
+  readHistory ReadHistory[]
+
+  @@map("series")
+}
+
+model Chapter {
+  id          String           @id @default(cuid())
+  title       String
+  chapterNumber Int
+  seriesId    String
+  publishDate DateTime         @default(now())
+  scheduledAt DateTime?
+  isPublished Boolean          @default(true)
+  views       Int              @default(0)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  // Relations
+  series      Series           @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  images      ChapterImage[]
+  comments    Comment[]
+  readHistory ReadHistory[]
+
+  @@map("chapters")
+}
+
+model ChapterImage {
+  id        String @id @default(cuid())
+  chapterId String
+  imageUrl  String
+  order     Int
+  createdAt DateTime @default(now())
+
+  // Relations
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@map("chapter_images")
+}
+
+model Genre {
+  id        String @id @default(cuid())
+  name      String @unique
+  createdAt DateTime @default(now())
+
+  // Relations
+  series SeriesGenre[]
+
+  @@map("genres")
+}
+
+model SeriesGenre {
+  id       String @id @default(cuid())
+  seriesId String
+  genreId  String
+
+  // Relations
+  series Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  genre  Genre  @relation(fields: [genreId], references: [id], onDelete: Cascade)
+
+  @@unique([seriesId, genreId])
+  @@map("series_genres")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  content   String
+  userId    String
+  seriesId  String?
+  chapterId String?
+  parentId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  series   Series?   @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  chapter  Chapter?  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  parent   Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  Comment[] @relation("CommentReplies")
+
+  @@map("comments")
+}
+
+model Rating {
+  id       String @id @default(cuid())
+  rating   Int    // 1-5 stars
+  userId   String
+  seriesId String
+  createdAt DateTime @default(now())
+
+  // Relations
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  series Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, seriesId])
+  @@map("ratings")
+}
+
+model Follow {
+  id       String   @id @default(cuid())
+  userId   String
+  seriesId String
+  createdAt DateTime @default(now())
+
+  // Relations
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  series Series @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, seriesId])
+  @@map("follows")
+}
+
+model ReadHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  seriesId  String
+  chapterId String
+  readAt    DateTime @default(now())
+
+  // Relations
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  series  Series  @relation(fields: [seriesId], references: [id], onDelete: Cascade)
+  chapter Chapter @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, chapterId])
+  @@map("read_history")
+}
+
+enum SeriesStatus {
+  ONGOING
+  COMPLETED
+  HIATUS
+  CANCELLED
+}
